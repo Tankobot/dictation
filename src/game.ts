@@ -282,10 +282,18 @@ export class Game {
       });
 
       this.term.writeln(chalk`Hit {cyanBright (Q)} to stop.`);
+      this.term.writeln(`Date: ${this.currentDay}`);
 
-      queue += dps * visPer;
+      if (queue < 1) queue += (dps * visPer) / 1000; // add to the queue if needed
 
-      for (; queue >= 1 && !overslept; queue--) await this.update();
+      for (; queue >= 1 && !overslept; queue--)
+        await new Promise(resolve => {
+          // prevent updates from starving the event loop
+          setImmediate(() => {
+            this.update();
+            resolve();
+          });
+        });
 
       //this.summarize();
 

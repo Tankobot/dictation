@@ -95,6 +95,21 @@ export class Prompter {
     this.term.write(this.prompt);
   }
 
+  private updateText(
+    cursor: CursorPosition,
+    s: string,
+    width: number,
+    phantom = false
+  ): void {
+    cursor.restore();
+    let rendered = this.abbreviate(width, s);
+    if (phantom) {
+      this.term.write(ansi.eraseEndLine);
+      rendered = chalk.bgGreen.white(rendered);
+    }
+    this.term.write(rendered);
+  }
+
   /** Wait for user to type input and press enter. */
   async getInput(width = -1): Promise<string> {
     const originalPosition = await new CursorPosition(this.term).save();
@@ -129,9 +144,15 @@ export class Prompter {
         }
 
         // refresh input line
-        originalPosition.restore();
-        this.term.write(ansi.eraseEndLine);
-        this.term.write(this.abbreviate(width, data.join("")));
+        // print autocomplete prediction
+        this.updateText(
+          originalPosition,
+          autocomplete(data).join(""),
+          width,
+          true
+        );
+        // print what has been typed
+        this.updateText(originalPosition, data.join(""), width);
       };
       this.term.on("key", listener);
     });
