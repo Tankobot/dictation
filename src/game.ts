@@ -27,6 +27,7 @@ export class Game {
 
   public prompter: Prompter;
   public cmd: Cmd;
+  public gameOver = false;
   public currentDay: number = 0;
   public planets: Planets;
   /** Amount of resources being transfered each day from one planet to another. */
@@ -48,6 +49,8 @@ export class Game {
     cmd.asyncOn("dev", () => {
       devIndicator = !devIndicator;
     });
+
+    cmd.asyncOn("help", () => this.help());
 
     cmd.asyncOn("check", async (args: Array<string>) => {
       const names = args[1] === undefined ? [args[0]] : [args[0], args[1]];
@@ -134,17 +137,26 @@ export class Game {
 
     this.writelnWrap(media.introduction);
     this.term.writeln("");
-    this.writelnWrap(media.help);
-
+    this.help(); // print out help information
     this.term.writeln("");
 
     // start game with 1 year of progress
     // this.term.writeln("Waiting one year automatically...");
     // await this.forward(365, 1);
 
-    this.term.scrollToTop();
+    this.writelnWrap(chalk`Press {cyanBright (S)} to start the game.`);
+    setImmediate(() => this.term.scrollToTop()); // wait for screen to render
+    await new Promise(resolve => {
+      const f = this.term.onKey(e => {
+        if (e.key.toLowerCase() == "s") {
+          resolve();
+          f.dispose();
+        }
+      });
+    });
 
-    while (true) {
+    this.gameOver = false;
+    while (!this.gameOver) {
       const args = await this.prompter.fromPrompt();
       // enable developer info
       if (devIndicator) {
@@ -155,6 +167,7 @@ export class Game {
       if (!success) {
         this.term.writeln(chalk.redBright("Commands:"));
         for (let c of [
+          "help",
           "check <planet> [planetTo]",
           "forward <days>",
           "transfer <res> <amt> <from> <to>"
@@ -163,6 +176,21 @@ export class Game {
         }
       }
     }
+  }
+
+  endGame() {
+    this.gameOver = true;
+    this.writelnWrap(chalk.redBright("All the planets are dead..."));
+    this.writelnWrap(`You survived ${this.currentDay} days.`);
+    this.writelnWrap(
+      `The total quality of life you provided was ${this.qolScore}.`
+    );
+    this.writelnWrap(`Thank you for playing ${media.title}`);
+  }
+
+  /** Print out the help information. */
+  async help(): Promise<void> {
+    this.writelnWrap(media.help);
   }
 
   error(msg: string): void {
@@ -195,8 +223,7 @@ export class Game {
 
       // only add rate information if necessary
       if (ra !== undefined) {
-        const rate: number = ra[resource];
-        row.push(formatDiff(rate));
+        row.push(formatDiff(ra[resource]));
       }
 
       data.push(row);
@@ -219,11 +246,29 @@ export class Game {
 
   /** Print the current status of a planet. */
   showPlanetStatus(planet: Planet): void {
-    this.term.writeln(chalk.blueBright(`${planet.name.toUpperCase()}:`));
-    const data = [["  orbit:", `${Math.round(planet.deg)}${units.angle}`]];
+    this.term.writeln(`${planet.fname}:`);
+    const data = [
+      ["  orbit:", `${Math.round(planet.deg)}${units.angle}`],
+      ["  qol:", `${planet.totalQol.toExponential(2)}`]
+    ];
     this.printData(
       data.concat(this.dataResources(planet.available, planet.rate))
     );
+  }
+
+  summarize(): void {
+    this.writelnWrap(`Total QOL: ${this.qolScore.toExponential(3)}`);
+
+    this.term.writeln("Planets:");
+    const data: string[][] = [];
+    for (let planet of Object.values(this.planets)) {
+      data.push([
+        `  ${planet.name}:`,
+        `${planet.totalQol.toExponential(3)}`,
+        formatDiff(planet.qolRate)
+      ]);
+    }
+    this.printData(data);
   }
 
   async check(planet: Planet, planetTo?: Planet) {
@@ -284,28 +329,37 @@ export class Game {
       this.term.writeln(chalk`Hit {cyanBright (Q)} to stop.`);
       this.term.writeln(`Date: ${this.currentDay}`);
 
-      if (queue < 1) queue += (dps * visPer) / 1000; // add to the queue if needed
+      this.summarize();
 
-      for (; queue >= 1 && !overslept; queue--)
-        await new Promise(resolve => {
+      // add to the queue if needed
+      if (queue < 1) queue += (dps * visPer) / 1000;
+
+      for (; queue >= 1 && !overslept; queue--) {
+        const someAlive = await new Promise<boolean>(resolve => {
           // prevent updates from starving the event loop
           setImmediate(() => {
-            this.update();
-            resolve();
+            resolve(this.update());
           });
         });
 
-      //this.summarize();
+        if (!someAlive) {
+          this.endGame();
+          aborter.dispose();
+          return;
+        }
+      }
 
       await sp; // ensure that minimum amount of time has passed
     }
   }
 
-  /** Update the game world by one day. */
-  async update() {
+  /** Update the game world by one day, returns false if all planets died. */
+  async update(): Promise<boolean> {
+    let someAlive = false;
     // process planets
     for (let planet of Object.values(this.planets)) {
       planet.step();
+      someAlive = someAlive || !planet.dead;
       this.qolScore += planet.totalQol;
     }
 
@@ -313,6 +367,8 @@ export class Game {
     this.trade.forward();
 
     this.currentDay += 1;
+
+    return someAlive;
   }
 
   async transfer(resource: string, amount: number, fromP: Planet, toP: Planet) {

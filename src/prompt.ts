@@ -173,8 +173,8 @@ export class Prompter {
 
 /** Add color and format difference. */
 export function formatDiff(dx: number, prec = 3): string {
-  const sign = Math.sign(dx) >= 0 ? "+" : "-";
-  const n = dx.toExponential(prec - 1);
+  const sign = Math.sign(dx) >= 0 ? "+" : "";
+  const n = dx.toPrecision(prec);
 
   let color: string = "whiteBright";
   if (dx > 0) {

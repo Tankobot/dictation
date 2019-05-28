@@ -75,19 +75,60 @@ export class Planet {
   public raw: Resources;
   /** Resources that are currently available. */
   public available: Resources;
-  /** Average change in resources per day (since last forward). */
+  /** Percent change in resources (since last day). */
   public rate: Resources;
+  public qolRate: number = 0;
 
   constructor(public name: string, state: PlanetaryState) {
     this.info = Object.assign({}, state);
     this.raw = Object.assign({}, state.initResources); // avoid reference
     this.available = {
-      water: 1,
-      food: 1,
-      energy: 1,
+      water: 0,
+      food: 0,
+      energy: 0,
       population: state.initResources.population // copy population
     };
     this.rate = zeroRes();
+  }
+
+  /** Return true if no population exists. */
+  get dead(): boolean {
+    return this.available.population === 0;
+  }
+
+  /** Formatted name with dead indicator if necessary. */
+  get fname(): string {
+    return chalk`{blueBright ${this.name.toUpperCase()}} {redBright ${
+      this.dead ? "(DEAD)" : ""
+    }}`;
+  }
+
+  /** Calculate current abundance of a raw material. */
+  abundance(resName: keyof Resources): number {
+    const original = this.info.initResources[resName];
+    return this.raw[resName] / original;
+  }
+
+  /** Process change of resource and return percent available changed. */
+  mu(resName: keyof Resources): number {
+    const oldAmt = this.raw[resName];
+    const reqAmt = this.available.population * refPlanet.waterPerCapita;
+
+    let mining = reqAmt;
+    mining *= 1 + sim.gainFactor;
+    mining *= this.abundance(resName);
+    mining = Math.min(oldAmt, mining);
+
+    this.raw[resName] -= mining;
+    const oldAvl = this.available[resName];
+    this.available[resName] += mining - reqAmt;
+    this.available[resName] = Math.max(0, this.available[resName]);
+
+    if (oldAvl === 0) {
+      return 0;
+    } else {
+      return (mining - reqAmt) / oldAvl;
+    }
   }
 
   /** Avereage water per person, will error on pop=0. */
@@ -105,17 +146,54 @@ export class Planet {
     return this.available.energy / this.available.population;
   }
 
+  /** How much the people's thirst is quenched. */
+  get quench(): number {
+    return (
+      Math.sqrt(this.waterPerCapita / refPlanet.waterPerCapita) -
+      sim.thirstFactor
+    );
+  }
+
+  /** How much the people's hunger is satisfied. */
+  get fullness(): number {
+    return (
+      Math.sqrt(this.foodPerCapita / refPlanet.foodPerCapita) - sim.hungerFactor
+    );
+  }
+
   /** Average qol per person. */
   get qolPerCapita(): number {
     if (this.available.population === 0) {
       return 0;
     } else {
-      let qol = 1;
-      qol *= this.waterPerCapita / setup.refStd.water;
-      qol *= this.foodPerCapita / setup.refStd.food;
-      qol *= this.energyPerCapita / setup.refStd.energy;
-      return Math.sqrt(qol);
+      return this.quench + this.fullness;
     }
+  }
+
+  /** Average productivity per capita of the planet. */
+  get productivity(): number {
+    return this.qolPerCapita / refPlanet.qolPerCapita;
+  }
+
+  /** Birth rate per day. */
+  get birthRate(): number {
+    if (this.quench < 0) {
+      return -sim.quenchDieOff;
+    } else if (this.fullness < 0) {
+      return -sim.hungerDieOff;
+    } else {
+      return (
+        Math.sign(this.productivity) * this.productivity ** 2 * sim.birthRate
+      );
+    }
+  }
+
+  /** Perform births for a day and return percent changed. */
+  birth(): number {
+    this.available.population -= 1;
+    this.available.population *= 1 + this.birthRate;
+    this.available.population = Math.round(this.available.population);
+    return this.birthRate;
   }
 
   /** Number to measure quality of life. */
@@ -143,11 +221,6 @@ export class Planet {
     return this.info.gravity ** 2;
   }
 
-  /** Average productivity per capita of the planet. */
-  get productivity(): number {
-    return this.qolPerCapita / refPlanet.qolPerCapita;
-  }
-
   /** Calculate distance to another planet. */
   distance(planet: Planet) {
     const dx = planet.x - this.x;
@@ -157,39 +230,24 @@ export class Planet {
 
   /** Step forward a single day for this planet. */
   step() {
-    // calculate gain first
-    for (let res of Object.keys(this.available)) {
-      if (res === "population") {
-        let growth = 1;
-        growth *= this.available.population;
-        let quench =
-          this.waterPerCapita / setup.refStd.water - sim.thirstFactor;
-        let fullness =
-          this.foodPerCapita / setup.refStd.food - sim.hungerFactor;
-        growth *= quench + fullness;
-        this.available.population += growth * sim.gainFactor;
-        this.available.population = Math.max(
-          Math.round(this.available.population),
-          0
-        );
-      } else {
-        let dr = this.raw[res] * this.productivity * sim.gainFactor;
-        dr = Math.min(dr, this.raw[res]); // cannot pull out more than exists
-        this.raw[res] -= dr;
-        this.available[res] += dr;
-      }
+    const oldQol = this.totalQol;
+
+    if (this.available.population === 0) {
+      return; // nothing will happen if population is zero
     }
 
-    // calculate consumtion
-    for (let res of Object.keys(this.available)) {
-      // population taken into account above
-      if (res !== "population") {
-        let dr = setup.refStd[res] * this.available.population;
-        this.available[res] -= Math.min(dr, this.available[res]); // cannot consume more than exists
-      }
-    }
+    // perform resource updates
+    this.rate.water = this.mu("water");
+    this.rate.food = this.mu("food");
+    this.rate.energy = this.mu("energy");
+
+    // perform population growth/demise
+    this.rate.population = this.birth();
 
     this.info.theta += (2 * Math.PI) / this.info.period; // perform rotation
+    this.info.theta %= 2 * Math.PI;
+
+    this.qolRate = this.totalQol / oldQol - 1;
   }
 
   /** Simulate the planet forward in time. */
@@ -205,5 +263,6 @@ export const refPlanet = new Planet("Reference", {
   theta: 1,
   initResources: setup.refStd
 });
+Object.assign(refPlanet.available, setup.refStd);
 
 export type Planets = { [name: string]: Planet };

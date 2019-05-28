@@ -20,7 +20,8 @@ function createTerminal(): Terminal {
 
   const term = new Terminal({
     fontFamily: "'Space Mono', monospace",
-    fontWeight: "bold",
+    //fontWeight: "bold",
+    fontSize: 20,
     cursorBlink: true,
     cols: 40,
     rows: 20,
