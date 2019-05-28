@@ -6,7 +6,7 @@ import { Terminal } from "xterm";
 import * as fit from "xterm/lib/addons/fit/fit";
 import chalk from "chalk";
 
-import { Howl, Howler } from "howler";
+import { Howl } from "howler";
 
 // We know that chalk will work here.
 chalk.enabled = true;
@@ -51,17 +51,14 @@ async function main(): Promise<void> {
 
   let game = new Game(term);
 
-  let sound = new Howl({
-    src: ['./audio/10 Arpanauts.mp3'],
+  const sound = new Howl({
+    src: ["./audio/10 Arpanauts.mp3"],
     autoplay: true,
     loop: true,
     volume: 0.1
   });
 
-
   await game.play();
-  
-  await sound.play();
 }
 
 WebFont.load({
