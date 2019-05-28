@@ -14,7 +14,7 @@ export default class Cmd extends EventEmitter {
     const p = this.tmp; // get promise out of tmp
     // in case promise rejects
     this.tmp = Promise.resolve(); // clear out previous promise chain
-    await p; // wait for promise to resolve
+    await p.catch((e: Error) => this.asyncEmit("error", e)); // wait for promise to resolve
     return listening;
   }
 

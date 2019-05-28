@@ -65,10 +65,8 @@ export class Game {
     });
 
     cmd.asyncOn("forward", async (args: Array<string>) => {
-      let days: number;
-      try {
-        days = Number(args[0]);
-      } catch (e) {
+      const days = Number(args[0]);
+      if (isNaN(days)) {
         this.error(`"${args[0]}" is not a number`);
         return;
       }

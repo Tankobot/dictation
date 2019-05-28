@@ -1,5 +1,6 @@
 import "./style.scss";
 import "../node_modules/xterm/dist/xterm.css";
+const song = require("../audio/10_Arpanauts.mp3");
 
 import * as WebFont from "webfontloader";
 import { Terminal } from "xterm";
@@ -52,7 +53,7 @@ async function main(): Promise<void> {
   let game = new Game(term);
 
   const sound = new Howl({
-    src: ["./audio/10 Arpanauts.mp3"],
+    src: [song],
     autoplay: true,
     loop: true,
     volume: 0.1

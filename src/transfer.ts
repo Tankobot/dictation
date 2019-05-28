@@ -85,8 +85,9 @@ export class Transfer {
     factor: number
   ) {
     for (let [name, amt] of Object.entries(amounts)) {
-      sender.available[name] -= Math.abs(amt) * factor;
-      receiver.available[name] += Math.abs(amt) * factor;
+      const safeAmt = Math.min(sender.available[name], Math.abs(amt) * factor);
+      sender.available[name] -= safeAmt;
+      receiver.available[name] += safeAmt;
     }
     // remove necessary energy
     sender.available.energy -= total;
