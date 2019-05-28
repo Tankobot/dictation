@@ -54,20 +54,96 @@ export namespace planets {
       food: refStd.food * refStd.population * 365 * 1e3,
       energy: earth.initResources.energy / 1e3,
 
-      population: 0
+      population: 3.43e9
     }
   };
 
-  /*
   export const mercury: PlanetaryState = {
     gravity: 3.7,
     distance: 57.9e6,
     period: 88.0,
     theta: rad(10.0),
+    
+    initResources: {
+      water: 4.3e9,
+      food: earth.initResources.food * 1.43e-6,
+      energy: earth.initResources.energy * 0.412,
 
-    water: earth.water / 1e9
+      population: 4.52e5
+    }
   };
-  */
+
+  export const venus: PlanetaryState = {
+    gravity: 8.9,
+    distance: 108.2e6, 
+    period: 224.7,
+    theta: 2 * Math.PI / 3,
+
+    initResources: {
+      water: 5.4e18,
+      food: earth.initResources.food * 0.9, 
+      energy: earth.initResources.energy * 1.215,
+      population: 2.89e9
+    }
+  };
+
+  export const jupiter: PlanetaryState = {
+    gravity: 23.1,
+    distance: 778.6e6,
+    period: 4331,
+    theta: -7 * Math.PI /12,
+
+    initResources: {
+      water: earth.initResources.water * 85,
+      food: earth.initResources.food * 81, 
+      energy: earth.initResources.energy * 317.8,
+
+      population: 5.014e10
+    }
+  };
+
+  export const saturn: PlanetaryState = {
+    gravity: 9.0,
+    distance: 1433.5e6,
+    period: 10747,
+    theta: 4 * Math.PI / 13 ,
+
+    initResources: {
+      water: earth.initResources.water * 42,
+      food: earth.initResources.food * 39, 
+      energy: earth.initResources.energy * 95.2,
+
+      population: 1.9e10
+    }
+  };
+
+  export const uranus: PlanetaryState = {
+    gravity: 8.7,
+    distance: 2872.5e6,
+    period: 30589,
+    theta: -Math.PI / 3,
+
+    initResources: {
+      water: earth.initResources.water * 16.43,
+      food: earth.initResources.food * 14.98, 
+      energy: earth.initResources.energy * 14.5,
+      population: 1.2e9
+    }
+  };
+
+  export const neptune: PlanetaryState = {
+    gravity: 11.0,
+    distance: 4495.1e6,
+    period: 59800,
+    theta: 19 * Math.PI / 23,
+
+    initResources: {
+      water: earth.initResources.water * 19.21,
+      food: earth.initResources.food * 17.53, 
+      energy: earth.initResources.energy * 17.1,
+      population: 2.4e9
+    }
+  };
 }
 
 export const earthAvailable: Resources = {} as any;
