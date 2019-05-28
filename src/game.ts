@@ -166,12 +166,7 @@ export class Game {
       const success = await this.cmd.parseArgs(args).catch(this.hError); // do not suppress errors
       if (!success) {
         this.term.writeln(chalk.redBright("Commands:"));
-        for (let c of [
-          "help",
-          "check <planet> [planetTo]",
-          "forward <days>",
-          "transfer <res> <amt> <from> <to>"
-        ]) {
+        for (let c of media.commands) {
           this.term.writeln(`  ${c}`);
         }
       }
@@ -181,11 +176,14 @@ export class Game {
   endGame() {
     this.gameOver = true;
     this.writelnWrap(chalk.redBright("All the planets are dead..."));
-    this.writelnWrap(`You survived ${this.currentDay} days.`);
+    this.writelnWrap(`You survived ${this.currentDay} years.`);
     this.writelnWrap(
-      `The total quality of life you provided was ${this.qolScore}.`
+      `The total quality of life you provided was ${
+        this.qolScore
+      }, or (${this.qolScore.toExponential(5)}).`
     );
-    this.writelnWrap(`Thank you for playing ${media.title}`);
+    this.writelnWrap(`Thank you for playing ${media.title}.`);
+    this.writelnWrap("You can restart the game by refreshing the page.");
   }
 
   /** Print out the help information. */
@@ -224,6 +222,8 @@ export class Game {
       // only add rate information if necessary
       if (ra !== undefined) {
         row.push(formatDiff(ra[resource]));
+      } else {
+        row.push("");
       }
 
       data.push(row);
@@ -256,10 +256,23 @@ export class Game {
     );
   }
 
+  sumAll(resName: keyof Resources): number {
+    return Object.values(this.planets)
+      .map(p => p.available[resName])
+      .reduce((prev, curr) => prev + curr, 0);
+  }
+
   summarize(): void {
     this.writelnWrap(`Total QOL: ${this.qolScore.toExponential(3)}`);
 
-    this.term.writeln("Planets:");
+    this.writelnWrap("Sum of all planets:");
+    const sumRes: Resources = {} as any;
+    for (let resName of Object.keys(setup.refStd)) {
+      sumRes[resName] = this.sumAll(resName);
+    }
+    this.printResources(sumRes);
+
+    this.term.writeln("Planet QOL's:");
     const data: string[][] = [];
     for (let planet of Object.values(this.planets)) {
       data.push([

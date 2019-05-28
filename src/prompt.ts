@@ -143,16 +143,17 @@ export class Prompter {
           return; // nothing of note, so exit fast
         }
 
+        const prediction = autocomplete(data);
+
         // refresh input line
         // print autocomplete prediction
+        this.updateText(originalPosition, prediction.join(""), width, true);
+        // print what has been typed
         this.updateText(
           originalPosition,
-          autocomplete(data).join(""),
-          width,
-          true
+          data.join(""),
+          width - (prediction.length - data.length)
         );
-        // print what has been typed
-        this.updateText(originalPosition, data.join(""), width);
       };
       this.term.on("key", listener);
     });
@@ -167,14 +168,14 @@ export class Prompter {
   async fromPrompt(): Promise<string[]> {
     this.printPrompt();
     const position = await getCursor(this.term);
-    return this.getArgs(this.term.cols - position.x);
+    return this.getArgs(this.term.cols - position.x - 1);
   }
 }
 
 /** Add color and format difference. */
 export function formatDiff(dx: number, prec = 3): string {
   const sign = Math.sign(dx) >= 0 ? "+" : "";
-  const n = dx.toPrecision(prec);
+  const n = (dx * 100).toPrecision(prec);
 
   let color: string = "whiteBright";
   if (dx > 0) {
@@ -185,5 +186,5 @@ export function formatDiff(dx: number, prec = 3): string {
     color = "redBright";
   }
 
-  return (chalk as any)[color](`(${sign}${n})`);
+  return (chalk as any)[color](`(${sign}${n}%)`);
 }

@@ -23,8 +23,8 @@ function createTerminal(): Terminal {
     //fontWeight: "bold",
     fontSize: 20,
     cursorBlink: true,
-    cols: 40,
-    rows: 20,
+    cols: 50,
+    rows: 25,
     convertEol: true
   });
 
