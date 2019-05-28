@@ -186,5 +186,5 @@ export function formatDiff(dx: number, prec = 3): string {
     color = "redBright";
   }
 
-  return (chalk as any)[color](`(${sign}${n}%)`);
+  return (chalk as any)[color](`(${sign}${n})`);
 }

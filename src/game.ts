@@ -3,6 +3,7 @@
 import { Terminal } from "xterm";
 import chalk from "chalk";
 
+const pkg = require("../package.json");
 import { feedWrap, VWord, feedTablify, Justify } from "./text";
 import { Prompter, formatDiff, clear } from "./prompt";
 import * as setup from "./setup";
@@ -47,7 +48,8 @@ export class Game {
     cmd.asyncOn("", () => {}); // nothing command
 
     cmd.asyncOn("dev", () => {
-      devIndicator = !devIndicator;
+      this.term.writeln(`Version: ${pkg.version}`);
+      // devIndicator = !devIndicator;
     });
 
     cmd.asyncOn("help", () => this.help());
@@ -143,6 +145,7 @@ export class Game {
     // await this.forward(365, 1);
 
     this.writelnWrap(chalk`Press {cyanBright (S)} to start the game.`);
+    await this.update();
     setImmediate(() => this.term.scrollToTop()); // wait for screen to render
     await new Promise(resolve => {
       const f = this.term.onKey(e => {
